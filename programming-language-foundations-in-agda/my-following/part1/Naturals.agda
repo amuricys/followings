@@ -72,3 +72,42 @@ _ =
  ≡⟨⟩
    729
  ∎
+
+_∸_ : ℕ → ℕ → ℕ
+m     ∸ zero   =  m
+zero  ∸ suc n  =  zero
+suc m ∸ suc n  =  m ∸ n
+
+_ : 5 ∸ 3 ≡ 2
+_ =
+  begin
+    5 ∸ 3
+  ≡⟨⟩
+    4 ∸ 2
+  ≡⟨⟩
+    3 ∸ 1
+  ≡⟨⟩
+    2 ∸ 0
+  ≡⟨⟩
+    2
+  ∎
+
+
+_ : 3 ∸ 5 ≡ 0
+_ =
+  begin
+    3 ∸ 5
+  ≡⟨⟩
+    2 ∸ 4
+  ≡⟨⟩
+    1 ∸ 3
+  ≡⟨⟩
+    0 ∸ 2
+  ≡⟨⟩
+    0
+  ∎
+
+-- Turd: So what we're doing is *just pattern matching*, right?
+-- When we define an equation/operator, we're saying "here are the
+-- patterns you can match on, and what equates to what. And those equalities
+-- will fall on steps of a theorem proving operation/reasoning chain.
