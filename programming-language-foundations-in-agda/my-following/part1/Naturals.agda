@@ -111,3 +111,37 @@ _ =
 -- When we define an equation/operator, we're saying "here are the
 -- patterns you can match on, and what equates to what. And those equalities
 -- will fall on steps of a theorem proving operation/reasoning chain.
+
+infixl 6  _+_  _∸_
+infixl 7  _*_
+
+-- Turd: What is the difference between the types 3 ∸ 5 ≡ 0 and 0?
+-- I don't know, but it seems there's no difference between 3 ∸ 5 ≡ 0 and 3 ∸ 4 ≡ 0.
+-- The same "expression" (the proof/content of the chain of reasoning) typechecks for both
+-- type signatures. Perhaps types are the same if they correspond to the same proofs?
+_ : 3 ∸ 4 ≡ 0
+_ =
+  begin
+    3 ∸ 5
+  ≡⟨⟩
+    2 ∸ 3
+  ≡⟨⟩
+    1 ∸ 3
+  ≡⟨⟩
+    0 ∸ 2
+  ≡⟨⟩
+    0
+  ∎
+
+-- Turd: I don't understand what kind of additional insight this part of the chapter is
+-- supposed to be adding. It seems completely trivial and void of content:
+-- On the fourth day, we know about addition of 0, 1, 2, and 3.
+-- 0 + 0 = 0     0 + 1 = 1     0 + 2 = 2     0 + 3 = 3     ...
+-- 1 + 0 = 1     1 + 1 = 2     1 + 2 = 3     1 + 3 = 4     ...
+-- 2 + 0 = 2     2 + 1 = 3     2 + 2 = 4     2 + 3 = 5     ...
+-- 3 + 0 = 3     3 + 1 = 4     3 + 2 = 5     3 + 3 = 6     ...
+
+_#-_ : ℕ → ℕ → ℕ
+zero #- n = n
+suc zero #- n = ?
+suc (suc m) #- n = ?
