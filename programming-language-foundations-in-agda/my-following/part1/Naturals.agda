@@ -141,7 +141,77 @@ _ =
 -- 2 + 0 = 2     2 + 1 = 3     2 + 2 = 4     2 + 3 = 5     ...
 -- 3 + 0 = 3     3 + 1 = 4     3 + 2 = 5     3 + 3 = 6     ...
 
-_#-_ : ℕ → ℕ → ℕ
-zero #- n = n
-suc zero #- n = ?
-suc (suc m) #- n = ?
+-- Turd: Que desgraça! Eu não consigo fazer essa porra com o modo interativo. C-c C-, não funciona de jeito nium
+-- _#-_ : ℕ → ℕ → ℕ
+-- zero #- n = n
+-- suc zero #- zero = {!!}
+
+{-# BUILTIN NATPLUS _+_ #-}
+{-# BUILTIN NATTIMES _*_ #-}
+{-# BUILTIN NATMINUS _∸_ #-}
+
+-- First stretch: Bin inc
+data Bin : Set where
+  ⟨⟩ : Bin
+  _O : Bin → Bin
+  _I : Bin → Bin
+
+inc : Bin → Bin
+inc ⟨⟩ = ⟨⟩ I
+inc (x O) = x I
+inc (p I) =  (inc p) O
+
+_ : inc (⟨⟩ I O I I) ≡ ⟨⟩ I I O O
+_ =
+  begin
+    inc (⟨⟩ I O I I)
+  ≡⟨⟩
+    (inc (⟨⟩ I O I ) O)
+  ≡⟨⟩
+    ( inc (⟨⟩ I O) O O )
+  ≡⟨⟩
+    ⟨⟩ I I O O
+  ∎
+
+to : ℕ → Bin
+to zero    = ⟨⟩ O
+to (suc n) = inc (to n)
+
+_ : to 4 ≡ ⟨⟩ I O O
+_ =
+  begin
+    to (suc 3)
+  ≡⟨⟩
+    inc (to (suc 2))
+  ≡⟨⟩
+    (inc (inc (to (suc 1))))
+  ≡⟨⟩
+    (inc (inc (inc (to (suc 0)))))
+  ≡⟨⟩
+    (inc (inc (inc (inc (to 0)))))
+  ≡⟨⟩
+    (inc (inc (inc (inc (⟨⟩ O)))))
+  ≡⟨⟩
+    (inc (inc (inc (⟨⟩ I))))
+  ≡⟨⟩
+    (inc (inc (⟨⟩ I O)))
+  ≡⟨⟩
+    (inc (⟨⟩ I I))
+  ≡⟨⟩
+    ⟨⟩ I O O
+  ∎
+
+
+-- Turd: Era pra usar `inc` de alguma forma aqui?? Não consigo ver como :( 
+from : Bin → ℕ
+from ⟨⟩     = zero 
+from (p I)  = suc (2 * (from p))
+from (p O)  = 2 * (from p)
+
+_ : from (⟨⟩ I O O)  ≡  4  
+_ =
+  begin
+    from (⟨⟩ I O O)
+   ≡⟨⟩
+    4
+  ∎
