@@ -1,0 +1,194 @@
+From cacaec3d5b61fb3ad633a2781b21b21478dff8b7 Mon Sep 17 00:00:00 2001
+From: Deco <decomuricy@gmail.com>
+Date: Tue, 5 Mar 2024 22:08:48 -0500
+Subject: [PATCH 1/7] Ran elan default stable and lake init and got a bunch of
+ shit
+
+---
+ .gitignore                             |  1 +
+ FunctionalProgrammingInLean.lean       |  3 ++
+ FunctionalProgrammingInLean/Basic.lean |  1 +
+ Main.lean                              |  4 ++
+ flake.lock                             | 61 ++++++++++++++++++++++++++
+ flake.nix                              | 20 +++++++++
+ lake-manifest.json                     |  5 +++
+ lakefile.lean                          | 12 +++++
+ lean-toolchain                         |  1 +
+ 9 files changed, 108 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 FunctionalProgrammingInLean.lean
+ create mode 100644 FunctionalProgrammingInLean/Basic.lean
+ create mode 100644 Main.lean
+ create mode 100644 flake.lock
+ create mode 100644 flake.nix
+ create mode 100644 lake-manifest.json
+ create mode 100644 lakefile.lean
+ create mode 100644 lean-toolchain
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..bfb30ec
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1 @@
++/.lake
+diff --git a/FunctionalProgrammingInLean.lean b/FunctionalProgrammingInLean.lean
+new file mode 100644
+index 0000000..d108734
+--- /dev/null
++++ b/FunctionalProgrammingInLean.lean
+@@ -0,0 +1,3 @@
++-- This module serves as the root of the `FunctionalProgrammingInLean` library.
++-- Import modules here that should be built as part of the library.
++import «FunctionalProgrammingInLean».Basic
+\ No newline at end of file
+diff --git a/FunctionalProgrammingInLean/Basic.lean b/FunctionalProgrammingInLean/Basic.lean
+new file mode 100644
+index 0000000..e99d3a6
+--- /dev/null
++++ b/FunctionalProgrammingInLean/Basic.lean
+@@ -0,0 +1 @@
++def hello := "world"
+\ No newline at end of file
+diff --git a/Main.lean b/Main.lean
+new file mode 100644
+index 0000000..bb9d00d
+--- /dev/null
++++ b/Main.lean
+@@ -0,0 +1,4 @@
++import «FunctionalProgrammingInLean»
++
++def main : IO Unit :=
++  IO.println s!"Hello, {hello}!"
+diff --git a/flake.lock b/flake.lock
+new file mode 100644
+index 0000000..4f2c510
+--- /dev/null
++++ b/flake.lock
+@@ -0,0 +1,61 @@
++{
++  "nodes": {
++    "flake-utils": {
++      "inputs": {
++        "systems": "systems"
++      },
++      "locked": {
++        "lastModified": 1709126324,
++        "narHash": "sha256-q6EQdSeUZOG26WelxqkmR7kArjgWCdw5sfJVHPH/7j8=",
++        "owner": "numtide",
++        "repo": "flake-utils",
++        "rev": "d465f4819400de7c8d874d50b982301f28a84605",
++        "type": "github"
++      },
++      "original": {
++        "owner": "numtide",
++        "repo": "flake-utils",
++        "type": "github"
++      }
++    },
++    "nixpkgs": {
++      "locked": {
++        "lastModified": 1709613862,
++        "narHash": "sha256-mH+c2gFEzEe49lhUWJ0ieIaMaJ1W85E6G1xLm8ege90=",
++        "owner": "NixOS",
++        "repo": "nixpkgs",
++        "rev": "311a4be96d940a0c673e88bd5bc83ea4f005cc02",
++        "type": "github"
++      },
++      "original": {
++        "owner": "NixOS",
++        "ref": "nixpkgs-unstable",
++        "repo": "nixpkgs",
++        "type": "github"
++      }
++    },
++    "root": {
++      "inputs": {
++        "flake-utils": "flake-utils",
++        "nixpkgs": "nixpkgs"
++      }
++    },
++    "systems": {
++      "locked": {
++        "lastModified": 1681028828,
++        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
++        "owner": "nix-systems",
++        "repo": "default",
++        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
++        "type": "github"
++      },
++      "original": {
++        "owner": "nix-systems",
++        "repo": "default",
++        "type": "github"
++      }
++    }
++  },
++  "root": "root",
++  "version": 7
++}
+diff --git a/flake.nix b/flake.nix
+new file mode 100644
+index 0000000..3fbdf93
+--- /dev/null
++++ b/flake.nix
+@@ -0,0 +1,20 @@
++{
++
++  inputs = {
++    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
++    flake-utils.url = "github:numtide/flake-utils";
++  };
++
++  outputs = { self, nixpkgs, flake-utils }:
++    flake-utils.lib.eachDefaultSystem (system:
++      let
++        pkgs = import nixpkgs { inherit system; };
++      in {
++        devShells.default = pkgs.mkShell {
++          buildInputs = [
++            pkgs.elan
++            pkgs.lean4
++          ];
++        };
++      });
++}
+diff --git a/lake-manifest.json b/lake-manifest.json
+new file mode 100644
+index 0000000..c76d258
+--- /dev/null
++++ b/lake-manifest.json
+@@ -0,0 +1,5 @@
++{"version": 7,
++ "packagesDir": ".lake/packages",
++ "packages": [],
++ "name": "«functional-programming-in-lean»",
++ "lakeDir": ".lake"}
+diff --git a/lakefile.lean b/lakefile.lean
+new file mode 100644
+index 0000000..9e4e648
+--- /dev/null
++++ b/lakefile.lean
+@@ -0,0 +1,12 @@
++import Lake
++open Lake DSL
++
++package «functional-programming-in-lean» where
++  -- add package configuration options here
++
++lean_lib «FunctionalProgrammingInLean» where
++  -- add library configuration options here
++
++@[default_target]
++lean_exe «functional-programming-in-lean» where
++  root := `Main
+diff --git a/lean-toolchain b/lean-toolchain
+new file mode 100644
+index 0000000..2bf5ad0
+--- /dev/null
++++ b/lean-toolchain
+@@ -0,0 +1 @@
++stable
+-- 
+2.42.0
+

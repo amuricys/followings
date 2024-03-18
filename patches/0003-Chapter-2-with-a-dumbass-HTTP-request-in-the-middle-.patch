@@ -1,0 +1,185 @@
+From 9b975bc86e6c0e5fc577f9cf7ec00baea636215e Mon Sep 17 00:00:00 2001
+From: Deco <decomuricy@gmail.com>
+Date: Wed, 6 Mar 2024 12:38:19 -0500
+Subject: [PATCH 3/7] Chapter 2 - with a dumbass HTTP request in the middle of
+ it. very nice
+
+---
+ FunctionalProgrammingInLean.lean            |  1 +
+ FunctionalProgrammingInLean/HelloWorld.lean | 87 +++++++++++++++++++++
+ Main.lean                                   |  9 ++-
+ lake-manifest.json                          | 29 ++++++-
+ lakefile.lean                               |  1 +
+ 5 files changed, 123 insertions(+), 4 deletions(-)
+ create mode 100644 FunctionalProgrammingInLean/HelloWorld.lean
+
+diff --git a/FunctionalProgrammingInLean.lean b/FunctionalProgrammingInLean.lean
+index 1a04f38..aa96b7f 100644
+--- a/FunctionalProgrammingInLean.lean
++++ b/FunctionalProgrammingInLean.lean
+@@ -1,3 +1,4 @@
+ -- This module serves as the root of the `FunctionalProgrammingInLean` library.
+ -- Import modules here that should be built as part of the library.
+ import «FunctionalProgrammingInLean».Intro
++import «FunctionalProgrammingInLean».HelloWorld
+diff --git a/FunctionalProgrammingInLean/HelloWorld.lean b/FunctionalProgrammingInLean/HelloWorld.lean
+new file mode 100644
+index 0000000..08d799e
+--- /dev/null
++++ b/FunctionalProgrammingInLean/HelloWorld.lean
+@@ -0,0 +1,87 @@
++import Http
++
++def intro : IO Unit := do
++  let stdin ← IO.getStdin
++  let stdout ← IO.getStdout
++
++  stdout.putStrLn "How would you like to be addressed?"
++  let input ← stdin.getLine
++  let name := input.dropRightWhile Char.isWhitespace
++
++  stdout.putStrLn s!"Hello, {name}!"
++
++-- #eval intro
++
++def countdown : Nat → List (IO Unit)
++  | 0 => [IO.println "Blast off!"]
++  | n + 1 => IO.println s!"{n + 1}" :: countdown n
++
++def runActions : List (IO Unit) → IO Unit
++  | [] => pure ()
++  | act :: actions => do
++    act
++    runActions actions
++
++-- #eval runActions (countdown 3)
++
++------ Feline example
++def bufsize : USize := 20 * 1024
++
++-- Hmm, partial seems to play exactly the same role as
++-- {-# TERMINATING #-}. It asserts that the function terminates
++-- even though the termination checker can't verify it. i guess
++-- partial functions are the same as non-terminating functions in some deep way
++partial def dump (stream : IO.FS.Stream) : IO Unit := do
++  let buf ← stream.read bufsize
++  if buf.isEmpty then
++    pure ()
++  else
++    (← IO.getStdout).write buf -- this is *almost* the same as >>=
++    -- Using >>= would look like this. It's weird because write is a *field* of IO.FS.Stream
++    -- IO.getStdout >>= flip IO.FS.Stream.write buf
++    dump stream
++
++-- very imperative style, the book uses
++def fileStream (filename : System.FilePath) : IO (Option IO.FS.Stream) := do
++  let fileExists ← filename.pathExists
++  if not fileExists then
++    let stderr ← IO.getStderr
++    stderr.putStrLn s!"File not found: {filename}"
++    pure none
++  else
++    let handle ← IO.FS.Handle.mk filename IO.FS.Mode.read
++    pure (some (IO.FS.Stream.ofHandle handle))
++
++
++-- "Just as with if, each branch of a match that is used as a statement in a
++-- do is implicitly provided with its own do." damn idk if i like this
++def process (exitCode : UInt32) (args : List String) : IO UInt32 := do
++  match args with
++  | [] => pure exitCode
++  | "-" :: args =>
++    let stdin ← IO.getStdin
++    dump stdin
++    process exitCode args
++  | filename :: args =>
++    let stream ← fileStream ⟨filename⟩
++    match stream with
++    | none =>
++      process 1 args
++    | some stream =>
++      dump stream
++      process exitCode args
++
++def main (args : List String) : IO UInt32 := do
++  let conn ← Connection.create "www.google.com" "80"
++  -- omg we can omit `some` when creating an Option literal
++  let req : Uri := { Uri.empty with path := "https://www.google.com" }
++  Connection.get conn req >>= λ m => match m with
++    | Except.ok resp => do
++       IO.println "Yooo good stuff"
++       IO.println resp
++    | Except.error e => do
++       IO.println "NAHH"
++       IO.println e
++  match args with
++  | [] => process 0 ["-"]
++  | _ =>  process 0 args
+diff --git a/Main.lean b/Main.lean
+index bb9d00d..a635cf5 100644
+--- a/Main.lean
++++ b/Main.lean
+@@ -1,4 +1,7 @@
+-import «FunctionalProgrammingInLean»
++import «FunctionalProgrammingInLean».HelloWorld
+ 
+-def main : IO Unit :=
+-  IO.println s!"Hello, {hello}!"
++-- Interesting: the main name can simply come from another
++-- module, and it will be used as the entry point as long
++-- as it is imported by this one
++-- def main : IO Unit :=
++--   IO.println s!"Hello, {hello}!"
+diff --git a/lake-manifest.json b/lake-manifest.json
+index c76d258..6fdf64d 100644
+--- a/lake-manifest.json
++++ b/lake-manifest.json
+@@ -1,5 +1,32 @@
+ {"version": 7,
+  "packagesDir": ".lake/packages",
+- "packages": [],
++ "packages":
++ [{"url": "https://github.com/algebraic-sofia/soda.git",
++   "type": "git",
++   "subDir": null,
++   "rev": "41c34bb9472b700dd6682dd37f3f0dfae45ed947",
++   "name": "soda",
++   "manifestFile": "lake-manifest.json",
++   "inputRev": null,
++   "inherited": true,
++   "configFile": "lakefile.lean"},
++  {"url": "https://github.com/KislyjKisel/Socket.lean.git",
++   "type": "git",
++   "subDir": null,
++   "rev": "9c7ee20ba007fc3698651a00f1d608b9ee698b05",
++   "name": "Socket",
++   "manifestFile": "lake-manifest.json",
++   "inputRev": null,
++   "inherited": true,
++   "configFile": "lakefile.lean"},
++  {"url": "https://github.com/axiomed/Http.lean.git",
++   "type": "git",
++   "subDir": null,
++   "rev": "a6972eb55a44cbcb7bdb3cc38a460073eb8ca428",
++   "name": "Http",
++   "manifestFile": "lake-manifest.json",
++   "inputRev": null,
++   "inherited": false,
++   "configFile": "lakefile.lean"}],
+  "name": "«functional-programming-in-lean»",
+  "lakeDir": ".lake"}
+diff --git a/lakefile.lean b/lakefile.lean
+index 9e4e648..ea36608 100644
+--- a/lakefile.lean
++++ b/lakefile.lean
+@@ -6,6 +6,7 @@ package «functional-programming-in-lean» where
+ 
+ lean_lib «FunctionalProgrammingInLean» where
+   -- add library configuration options here
++  require Http from git "https://github.com/axiomed/Http.lean.git"
+ 
+ @[default_target]
+ lean_exe «functional-programming-in-lean» where
+-- 
+2.42.0
+

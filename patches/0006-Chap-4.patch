@@ -1,0 +1,478 @@
+From 4395e84cb6bb6ff754b4a4a8c736d4657be060da Mon Sep 17 00:00:00 2001
+From: Deco <decomuricy@gmail.com>
+Date: Fri, 8 Mar 2024 16:39:48 -0500
+Subject: [PATCH 6/7] Chap 4
+
+---
+ FunctionalProgrammingInLean.lean              |   1 +
+ FunctionalProgrammingInLean/HelloWorld.lean   |   2 +-
+ .../OverloadAndTypeclass.lean                 | 435 ++++++++++++++++++
+ 3 files changed, 437 insertions(+), 1 deletion(-)
+ create mode 100644 FunctionalProgrammingInLean/OverloadAndTypeclass.lean
+
+diff --git a/FunctionalProgrammingInLean.lean b/FunctionalProgrammingInLean.lean
+index 4cbdcd3..414cc60 100644
+--- a/FunctionalProgrammingInLean.lean
++++ b/FunctionalProgrammingInLean.lean
+@@ -3,3 +3,4 @@
+ import «FunctionalProgrammingInLean».GettingToKnow
+ import «FunctionalProgrammingInLean».HelloWorld
+ import «FunctionalProgrammingInLean».InterludePropsProofsIndex
++import «FunctionalProgrammingInLean».OverloadAndTypeclass
+diff --git a/FunctionalProgrammingInLean/HelloWorld.lean b/FunctionalProgrammingInLean/HelloWorld.lean
+index 08d799e..64ab7e7 100644
+--- a/FunctionalProgrammingInLean/HelloWorld.lean
++++ b/FunctionalProgrammingInLean/HelloWorld.lean
+@@ -73,7 +73,7 @@ def process (exitCode : UInt32) (args : List String) : IO UInt32 := do
+ 
+ def main (args : List String) : IO UInt32 := do
+   let conn ← Connection.create "www.google.com" "80"
+-  -- omg we can omit `some` when creating an Option literal
++  -- omg we can omit `some` when creating an Option literal. Due to Coe!
+   let req : Uri := { Uri.empty with path := "https://www.google.com" }
+   Connection.get conn req >>= λ m => match m with
+     | Except.ok resp => do
+diff --git a/FunctionalProgrammingInLean/OverloadAndTypeclass.lean b/FunctionalProgrammingInLean/OverloadAndTypeclass.lean
+new file mode 100644
+index 0000000..4044888
+--- /dev/null
++++ b/FunctionalProgrammingInLean/OverloadAndTypeclass.lean
+@@ -0,0 +1,435 @@
++import Lean
++
++inductive Pos : Type where
++  | one : Pos
++  | succ : Pos → Pos
++def seven : Pos :=
++  Pos.succ (Pos.succ (Pos.succ (Pos.succ (Pos.succ (Pos.succ Pos.one)))))
++instance : Add Pos where
++  add :=
++  -- This helper function is needed because an instance cannot
++  -- be defined recursively.
++  let rec plus : Pos → Pos → Pos
++    | Pos.one, n => Pos.succ n
++    | Pos.succ m, n => Pos.succ (plus m n)
++  plus
++def fourteen : Pos := seven + seven
++
++instance : Mul Pos where
++  mul :=
++  let rec mult : Pos → Pos → Pos
++    | Pos.one, n => n
++    | Pos.succ m, n => n + mult m n
++  mult
++def fortyNine : Pos := seven * seven
++
++def posToString (atTop : Bool) (p : Pos) : String :=
++  -- Hmm nice syntax for defining functions with inferred type. Haskell-like
++  let paren s := if atTop then s else "(" ++ s ++ ")"
++  match p with
++  | Pos.one => "Pos.one"
++  | Pos.succ n => paren s!"Pos.succ {posToString false n}"
++
++instance : ToString Pos where
++  toString := posToString true
++-- WHAT! This prints the first instance:
++#eval s!"There are {seven}"
++
++def Pos.toNat : Pos → Nat
++  | Pos.one => 1
++  | Pos.succ n => n.toNat + 1
++
++instance : ToString Pos where
++  toString x := toString (x.toNat)
++
++-- This prints the second instance!!
++#eval s!"There are {seven}"
++
++-- This is very strange. It's like a file is a living REPL or something.
++-- What if a program imports this file? Does it get the first or second instance?
++
++instance : OfNat Pos (n + 1) where
++  ofNat :=
++    let rec fromNat : Nat → Pos
++      | 0 => Pos.one
++      | m + 1 => Pos.succ (fromNat m)
++    fromNat n
++
++#eval s!"There are {seven}"
++
++-- Three different ways to check the type of something
++#check @IO.println
++#check IO.println
++#check (IO.println)
++
++def List.sum [Add α] [OfNat α 0] : List α → α
++  | [] => 0
++  | x :: xs => x + xs.sum
++
++#eval List.sum [1, 2, 3, (4 : Nat)]
++#eval List.sum [1, 2, 3, 4.5]
++-- #eval List.sum [1, 2, 3, (4 : Pos)]
++
++structure PPoint (α : Type) where
++  x : α
++  y : α
++deriving Repr
++instance ptAddInstance [HAdd α β γ] : HAdd (PPoint α) (PPoint β) (PPoint γ) where
++  hAdd p1 p2 := { x := p1.x + p2.x, y := p1.y + p2.y }
++
++inductive Even : Type where
++  | zero : Even
++  | succsucc : Even → Even
++
++instance : Add Even where
++  add :=
++  let rec plus : Even → Even → Even
++    | e, Even.zero => e
++    | e, Even.succsucc e' => Even.succsucc (plus e e')
++  plus
++
++instance : Mul Even where
++  mul :=
++  let rec mult : Even → Even → Even
++    | _, Even.zero => Even.zero
++    | e, Even.succsucc e' => e + (mult e e')
++  mult
++
++def evenToNat : Even → Nat
++  | Even.zero => 0
++  | Even.succsucc e => 2 + evenToNat e
++
++-- WHAT It's so easy and intuitive to define propositions
++def even (n : Nat) : Prop := match n with
++  | 0 => True
++  | 1 => False
++  | n + 2 => even n
++
++theorem evenMinusTwoIsEven : (n : Nat) → even n → even (n - 2)
++  | 0, _ => True.intro -- True is true, and True.intro (or more commonly, trivial) is the proof.
++  | 1, h => False.elim h -- False.elim : False → C says that from False, any desired proposition C holds. Also known as ex falso quodlibet (EFQ) or the principle of explosion. The target type is actually C : Sort u which means it works for both propositions and types. When executed, this acts like an "unreachable" instruction: it is undefined behavior to run, but it will probably print "unreachable code". (You would need to construct a proof of false to run it anyway, which you can only do using sorry or unsound axioms.)
++  | _ + 2, h => h
++
++theorem evenPlusTwoIsEven : (n : Nat) → even n → even (n + 2)
++  | 0, _ => True.intro -- True is true, and True.intro (or more commonly, trivial) is the proof.
++  | 1, h => False.elim h -- False.elim : False → C says that from False, any desired proposition C holds. Also known as ex falso quodlibet (EFQ) or the principle of explosion. The target type is actually C : Sort u which means it works for both propositions and types. When executed, this acts like an "unreachable" instruction: it is undefined behavior to run, but it will probably print "unreachable code". (You would need to construct a proof of false to run it anyway, which you can only do using sorry or unsound axioms.)
++  | _ + 2, h => h
++
++-- def natToEven (n : Nat) (isEven : even n) : Even :=
++--   match n, isEven with
++--   | 0, _ => Even.zero
++--   | Nat.succ (Nat.succ n₁), _ => Even.succsucc (natToEven n₁ (by ??? )) --
++
++/- Exercises
++Even Number Literals
++Write an instance of OfNat for the even number datatype
++from the previous section's exercises that uses recursive instance search.
++For the base instance, it is necessary to write OfNat Even Nat.zero
++instead of OfNat Even 0.
++
++Recursive Instance Search Depth
++There is a limit to how many times the Lean compiler will
++attempt a recursive instance search. This places a limit
++on the size of even number literals defined in the previous
++exercise. Experimentally determine what the limit is.
++-/
++
++-- getting down to HAdd lets see
++instance : HAdd Nat Pos Pos where
++  hAdd :=
++  let rec addNatPos : Nat → Pos → Pos
++    | 0, p => p
++    | n + 1, p => Pos.succ (addNatPos n p)
++  addNatPos
++
++instance : HAdd Pos Nat Pos where
++  hAdd := let rec addPosNat : Pos → Nat → Pos
++    | p, 0 => p
++    | p, n + 1 => Pos.succ (addPosNat p n)
++  addPosNat
++#eval (3 : Pos) + (5 : Nat)
++
++-- outParams seem basically like fundeps! :)
++class HPlus (α : Type) (β : Type) (γ : outParam Type) where
++  hPlus : α → β → γ
++
++-- This makes it so that partially applying hPlus, for example
++-- will cause the compiler to settle for this instance immediately
++@[default_instance]
++instance [Add α] : HPlus α α α where
++  hPlus := Add.add
++
++-- Ayyyy arrays
++def arr : Array Nat := #[1, 2, 3, 4, 5]
++
++/-
++"In pure functional languages like Lean, it is not possible to mutate
++a given position in a data structure. Instead, a copy is made that has
++the desired modifications. When using an array, the Lean compiler and
++runtime contain an optimization that can allow modifications to be implemented
++as mutations behind the scenes when there is only a single unique reference
++to an array."
++
++nice
++-/
++
++structure NonEmptyList (α : Type) : Type where
++  head : α
++  tail : List α
++
++def NonEmptyList.get? : NonEmptyList α → Nat → Option α
++  | xs, 0 => some xs.head
++  | xs, n + 1 => xs.tail.get? n
++
++def idahoSpiders : NonEmptyList String := {
++  head := "Banded Garden Spider",
++  tail := [
++    "Long-legged Sac Spider",
++    "Wolf Spider",
++    "Hobo Spider",
++    "Cat-faced Spider"
++  ]
++}
++
++abbrev NonEmptyList.inBounds (xs : NonEmptyList α) (i : Nat) : Prop :=
++  i ≤ xs.tail.length
++
++-- WTF? Why no worky. Gotta look at the theorem proving book i guess
++-- theorem atLeastThreeSpiders : idahoSpiders.inBounds 2 := by simp
++-- theorem notSixSpiders : ¬idahoSpiders.inBounds 5 := by simp
++def NonEmptyList.get (xs : NonEmptyList α) (i : Nat) (ok : xs.inBounds i) : α :=
++  match i with
++  | 0 => xs.head
++  | n + 1 => xs.tail[n]
++
++instance : GetElem (NonEmptyList α) Nat α NonEmptyList.inBounds where
++  getElem := NonEmptyList.get
++
++#eval String.append idahoSpiders[0] idahoSpiders[2]
++
++-- Making `if` take a Prop instead of a Bool is a galaxy brained move
++#check fun c x => if 2 < 4 then x else "nope"
++
++def hashPos : Pos → UInt64
++  | Pos.one => mixHash 1 0
++  | Pos.succ n => mixHash 1 (hashPos n)
++
++instance : Hashable Pos where
++  hash := hashPos
++
++#eval hash (2 : Pos)
++
++inductive BinTree (α : Type) where
++  | leaf : BinTree α
++  | branch : BinTree α → α → BinTree α → BinTree α
++
++instance [BEq α] : BEq (BinTree α) where
++  beq :=
++    let rec eqBinTree
++    | BinTree.leaf, BinTree.leaf => true
++    | BinTree.branch l x r, BinTree.branch l2 x2 r2 =>
++        x == x2 && eqBinTree l l2 && eqBinTree r r2
++    | _, _ => false
++    eqBinTree
++
++def hashBinTree [Hashable α] : BinTree α → UInt64
++  | BinTree.leaf => 0
++  | BinTree.branch left x right =>
++    mixHash 1 (mixHash (hashBinTree left) (mixHash (hash x) (hashBinTree right)))
++
++instance [Hashable α] : Hashable (BinTree α) where
++  hash := hashBinTree
++
++instance : Functor BinTree where
++  map :=
++    let rec map' f
++    | BinTree.leaf => BinTree.leaf
++    | BinTree.branch l x r => BinTree.branch (map' f l) (f x) (map' f r)
++    map'
++
++---- Coercions
++-- This instance
++instance : Coe Pos Nat where
++  coe x := x.toNat
++-- allows this to work
++#eval List.drop (2 : Pos) [1, 2, 3, 4]
++-- This instance on the other hand
++instance : Coe (List a) (Array a) where
++  coe a := a.toArray
++-- allows this
++#eval (List.drop 2 [1, 2, 3, 4] : Array Nat)
++
++-- But this instance
++instance : Coe (Array a) (List a) where
++  coe a := a.toList
++-- SHOULD allow this but doesn't
++-- #eval (List.drop 2 #[1, 2, 3, 4])
++
++structure Monoid where
++  Carrier : Type
++  neutral : Carrier
++  op : Carrier → Carrier → Carrier
++  -- Let's make sure of the laws. we have dependent types ffs
++  lunit : (a : Carrier) → op neutral a = a
++  runit : (a : Carrier) → op a neutral = a
++  assoc : (a b c : Carrier) → op (op a b) c = op a (op b c)
++
++def natMulMonoid : Monoid :=
++  { Carrier := Nat, neutral := 1, op := (· * ·), lunit := Nat.one_mul, runit := Nat.mul_one, assoc := Nat.mul_assoc}
++
++def natAddMonoid : Monoid :=
++  { Carrier := Nat, neutral := 0, op := (· + ·), lunit := Nat.zero_add, runit := Nat.add_zero, assoc := Nat.add_assoc}
++
++def String.empty_append : (s : String) → "" ++ s = s
++  | ""   => rfl
++  | s => rfl
++
++-- Cant figure this bastard out rn
++-- def String.append_empty : (s : String) → s ++ "" = s := rfl
++
++-- def stringMonoid : Monoid :=
++--   { Carrier := String, neutral := "", op := String.append, lunit := String.empty_append, runit := String.append_empty, assoc := String.append_assoc}
++
++def listMonoid (α : Type) : Monoid :=
++  { Carrier := List α, neutral := [], op := List.append, lunit := List.nil_append, runit := List.append_nil, assoc := List.append_assoc}
++
++
++
++/-
++"The CoeSort class is just like the Coe class, with the exception
++that the target of the coercion must be a sort, namely Type or Prop.
++The term sort in Lean refers to these types that classify other types—Type classifies
++types that themselves classify data, and Prop classifies propositions
++that themselves classify evidence of their truth. Just as Coe is checked
++when a type mismatch occurs, CoeSort is used when something other
++than a sort is provided in a context where a sort would be expected."
++
++Nice. Took me forever to figure out what a sort is. I guess it's conceptually
++the same as something of h-level 1 in homotopy type theory.
++-/
++instance : CoeSort Monoid Type where
++  coe m := m.Carrier
++
++def foldMap (M : Monoid) (f : α → M) (xs : List α) : M :=
++  let rec go (soFar : M) : List α → M
++    | [] => soFar
++    | y :: ys => go (M.op soFar (f y)) ys
++  go M.neutral xs
++#eval foldMap natMulMonoid (fun x => x + 10) [1, 2, 3, 4, 5, 6]
++
++/-
++"Another useful example of CoeSort is used to bridge the gap between Bool and Prop.
++As discussed in the section on ordering and equality, Lean's if expression expects
++the condition to be a decidable proposition rather than a Bool. Programs typically
++need to be able to branch based on Boolean values, however. Rather than have two
++kinds of if expression, the Lean standard library defines a coercion from Bool to
++the proposition that the Bool in question is equal to true:
++
++
++instance : CoeSort Bool Prop where
++  coe b := b = true
++In this case, the sort in question is Prop rather than Type."
++
++FUCKING BRILLIANT HAHA
++-/
++
++-- Coercing to functions - basic example illuminates exactly nothing...
++structure Adder where
++  howMuch : Nat
++def add5 : Adder := ⟨5⟩
++instance : CoeFun Adder (fun _ => Nat → Nat) where
++  coe a := (· + a.howMuch)
++#eval add5 3
++
++-- Let's see the non basic one.
++inductive JSON where
++  | true : JSON
++  | false : JSON
++  | null : JSON
++  | string : String → JSON
++  | number : Float → JSON
++  | object : List (String × JSON) → JSON
++  | array : List JSON → JSON
++deriving Repr
++
++structure Serializer where
++  Contents : Type
++  serialize : Contents → JSON
++
++def Str : Serializer :=
++  { Contents := String,
++    serialize := JSON.string
++  }
++
++instance : CoeFun Serializer (fun s => s.Contents → JSON) where
++  coe s := s.serialize
++
++def buildResponse (title : String) (R : Serializer) (record : R.Contents) : JSON :=
++  JSON.object [
++    ("title", JSON.string title),
++    ("status", JSON.number 200),
++    ("record", R record)
++  ]
++
++-- Still dont really get the point. Aside:
++def dropDecimals (numString : String) : String :=
++  if numString.contains '.' then
++    let noTrailingZeros := numString.dropRightWhile (· = '0')
++    noTrailingZeros.dropRightWhile (· = '.')
++  else numString
++
++#eval dropDecimals ∘ toString $ (3 : Float)
++
++def String.separate : String → List String → String :=
++  λ sep => String.join ∘ List.intersperse sep
++
++#eval String.separate ", " ["one", "two", "three"]
++
++partial def JSON.asString (val : JSON) : String :=
++  match val with
++  | true => "true"
++  | false => "false"
++  | null => "null"
++  | string s => "\"" ++ Lean.Json.escape s ++ "\""
++  | number n => dropDecimals n.toString
++  | object members =>
++    let memberToString mem :=
++      "\"" ++ Lean.Json.escape mem.fst ++ "\": " ++ asString mem.snd
++    "{" ++ ", ".separate (members.map memberToString) ++ "}"
++  | array elements =>
++    "[" ++ ", ".separate (elements.map asString) ++ "]"
++
++open JSON
++#eval asString ∘ buildResponse "test" Str $ "test"
++
++
++structure Tree : Type where
++  latinName : String
++  commonNames : List String
++
++def oak : Tree :=
++  ⟨"Quercus robur", ["common oak", "European oak"]⟩
++
++def birch : Tree :=
++  { latinName := "Betula pendula",
++    commonNames := ["silver birch", "warty birch"]
++  }
++
++-- this one is new o.o closer to class instance syntax
++def sloe : Tree where
++  latinName := "Prunus spinosa"
++  commonNames := ["sloe", "blackthorn"]
++
++
++-- nice
++class Display (α : Type) where
++  displayName : α → String
++
++instance : Display Tree :=
++  ⟨Tree.latinName⟩
++
++instance : Display Tree :=
++  { displayName := Tree.latinName }
++
++instance : Display Tree where
++  displayName t := t.latinName
+-- 
+2.42.0
+

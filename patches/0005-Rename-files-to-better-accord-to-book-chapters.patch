@@ -1,0 +1,35 @@
+From 12ec41e858d852137396e95ed72c1178869f6bcd Mon Sep 17 00:00:00 2001
+From: Deco <decomuricy@gmail.com>
+Date: Wed, 6 Mar 2024 13:33:05 -0500
+Subject: [PATCH 5/7] Rename files to better accord to book chapters
+
+---
+ FunctionalProgrammingInLean.lean                               | 3 ++-
+ FunctionalProgrammingInLean/{Intro.lean => GettingToKnow.lean} | 0
+ .../{PropsProofsIndex.lean => InterludePropsProofsIndex.lean}  | 0
+ 3 files changed, 2 insertions(+), 1 deletion(-)
+ rename FunctionalProgrammingInLean/{Intro.lean => GettingToKnow.lean} (100%)
+ rename FunctionalProgrammingInLean/{PropsProofsIndex.lean => InterludePropsProofsIndex.lean} (100%)
+
+diff --git a/FunctionalProgrammingInLean.lean b/FunctionalProgrammingInLean.lean
+index aa96b7f..4cbdcd3 100644
+--- a/FunctionalProgrammingInLean.lean
++++ b/FunctionalProgrammingInLean.lean
+@@ -1,4 +1,5 @@
+ -- This module serves as the root of the `FunctionalProgrammingInLean` library.
+ -- Import modules here that should be built as part of the library.
+-import «FunctionalProgrammingInLean».Intro
++import «FunctionalProgrammingInLean».GettingToKnow
+ import «FunctionalProgrammingInLean».HelloWorld
++import «FunctionalProgrammingInLean».InterludePropsProofsIndex
+diff --git a/FunctionalProgrammingInLean/Intro.lean b/FunctionalProgrammingInLean/GettingToKnow.lean
+similarity index 100%
+rename from FunctionalProgrammingInLean/Intro.lean
+rename to FunctionalProgrammingInLean/GettingToKnow.lean
+diff --git a/FunctionalProgrammingInLean/PropsProofsIndex.lean b/FunctionalProgrammingInLean/InterludePropsProofsIndex.lean
+similarity index 100%
+rename from FunctionalProgrammingInLean/PropsProofsIndex.lean
+rename to FunctionalProgrammingInLean/InterludePropsProofsIndex.lean
+-- 
+2.42.0
+
